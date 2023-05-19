@@ -153,6 +153,8 @@ def parse_model(dbf, phase_name, model_node, parameters):
                 sp = species_dict[constituent_node.attrib["refid"]]
                 chemical_groups_hint["anions"][sp] = int(constituent_node.attrib["groupid"])
         model_hints["mqmqa"]["chemical_groups"] = chemical_groups_hint
+    if model_type == "UNIQUAC":
+        model_hints["uniquac"] = {}
     else:
         # Non-MQMQA chemical groups
         chemical_groups_node = _get_single_node(model_node.xpath('./ChemicalGroups'), allow_zero=True)
@@ -171,7 +173,7 @@ def parse_model(dbf, phase_name, model_node, parameters):
         param_type = param_node.attrib['type']
 
         int_order, constituent_array = parse_cef_parameter(param_node)
-        if (model_type in "MQMQA") or (param_type == "QKT"):
+        if (model_type in "MQMQA") or (model_type in "UNIQUAC") or (param_type == "QKT"):
             # Special MQMQA/QKTO handling, which do not have Redlich-Kister parameters.
             # Redlich-Kister "order" has no meaning
             int_order = None
@@ -214,6 +216,12 @@ def parse_model(dbf, phase_name, model_node, parameters):
                 param_data["additional_mixing_constituent"] = v.Species(None)
                 param_data["additional_mixing_exponent"] = 0  # Arbitrary
         elif param_type == "QKT":
+            exponents_node = _get_single_node(param_node.xpath('./Exponents'))
+            param_data["exponents"] = list(map(float, exponents_node.text.split()))
+        elif param_type == "QKT":
+            exponents_node = _get_single_node(param_node.xpath('./Exponents'))
+            param_data["exponents"] = list(map(float, exponents_node.text.split()))
+        elif param_type == "UQCT":
             exponents_node = _get_single_node(param_node.xpath('./Exponents'))
             param_data["exponents"] = list(map(float, exponents_node.text.split()))
 
@@ -265,7 +273,7 @@ def read_xml(dbf, fd):
             model_node = model_nodes[0]
             phase_name = child.attrib['id']
             parameters = child.xpath('./Parameter')
-            if model_node.attrib['type'] in ("MQMQA", "CEF"):
+            if model_node.attrib['type'] in ("MQMQA", "CEF", "UNIQUAC"):
                 parse_model(dbf, phase_name, model_node, parameters)
     dbf.process_parameter_queue()
 

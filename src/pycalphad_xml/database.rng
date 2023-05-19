@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <grammar ns="" xmlns="http://relaxng.org/ns/structure/1.0"
     xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
     datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
     <include href="core.rng"/>
     <include href="CEF.rng"/>
     <include href="MQMQA.rng"/>
+    <include href="UNIQUAC.rng"/>
     <start>
         <element name="Database">
             <a:documentation>Self-consistent database of material properties</a:documentation>
@@ -84,6 +84,7 @@
                         <choice>
                             <ref name="CEF.model"/>
                             <ref name="MQMQA.model"/>
+                            <ref name="UNIQUAC.model"/>
                         </choice>
                     </element>
                 </oneOrMore>
