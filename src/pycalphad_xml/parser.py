@@ -153,8 +153,18 @@ def parse_model(dbf, phase_name, model_node, parameters):
                 sp = species_dict[constituent_node.attrib["refid"]]
                 chemical_groups_hint["anions"][sp] = int(constituent_node.attrib["groupid"])
         model_hints["mqmqa"]["chemical_groups"] = chemical_groups_hint
+
+    #UNIQUAC hints
     if model_type == "UNIQUAC":
         model_hints["uniquac"] = {}
+        chemical_groups_hint = {}
+        chemical_groups_node = _get_single_node(model_node.xpath('./ChemicalGroups'), allow_zero=True)
+        if chemical_groups_node is not None:
+            chemical_groups_hint["chemical_groups"] = {}
+            for constituent_node in chemical_groups_node.xpath('./Constituent'):
+                sp = species_dict[constituent_node.attrib["refid"]]
+                chemical_groups_hint["chemical_groups"][sp] = int(constituent_node.attrib["groupid"])
+        model_hints["uniquac"]["chemical_groups"] = chemical_groups_hint
     else:
         # Non-MQMQA chemical groups
         chemical_groups_node = _get_single_node(model_node.xpath('./ChemicalGroups'), allow_zero=True)
@@ -337,6 +347,28 @@ def write_xml(dbf, fd, require_valid=True):
             for constituent, group_id in hint["chemical_groups"]["anions"].items():
                     objectify.SubElement(anion_node, "Constituent", refid=str(constituent), groupid=str(group_id))
             del model_hints["mqmqa"]
+        if "uniquac" in model_hints:
+            # UNIQUAC model
+            hint = model_hints["uniquac"]
+            model_node = objectify.SubElement(phase_nodes[name], "Model", type="UNIQUAC")
+
+            constit_array_node = objectify.SubElement(model_node, "ConstituentArray")
+            subl_idx = 0
+            # Don't loop over sublattices, they are reflective of cation/anion sublattices for MQMQA
+            for constituents in phase_obj.constituents:
+                # Site ratios are not relevant for MQMQA phases
+                site_node = objectify.SubElement(constit_array_node, "Site", id=str(subl_idx))
+                for constituent in sorted(constituents, key=str):
+                    objectify.SubElement(site_node, "Constituent", refid=str(constituent))
+                subl_idx += 1
+
+            # ChemicalGroups
+            if "chemical_groups" in model_hints:
+                chemical_groups_node = objectify.SubElement(model_node, "ChemicalGroups")
+                for constituent, group_id in model_hints["chemical_groups"].items():
+                        objectify.SubElement(chemical_groups_node, "Constituent", refid=str(constituent), groupid=str(group_id))
+
+            del model_hints["uniquac"]
         else:
             model_node = objectify.SubElement(phase_nodes[name], "Model", type="CEF")
             constit_array_node = objectify.SubElement(model_node, "ConstituentArray")
@@ -417,6 +449,8 @@ def write_xml(dbf, fd, require_valid=True):
                 objectify.SubElement(param_node, "AdditionalMixingConstituent", refid=str(param["additional_mixing_constituent"]))
                 objectify.SubElement(param_node, "AdditionalMixingExponent")._setText(str(param["additional_mixing_exponent"]))
         elif param["parameter_type"] == "QKT":
+            objectify.SubElement(param_node, "Exponents")._setText(" ".join(map(str, param["exponents"])))
+        elif param["parameter_type"] == "UQCT":
             objectify.SubElement(param_node, "Exponents")._setText(" ".join(map(str, param["exponents"])))
 
         if param.get("parameter") is not None:
